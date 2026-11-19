@@ -84,8 +84,10 @@ replay (kern#148); give such a lane a launch at every value, or join it without 
 
 ## Boundaries
 
-No network (no curl, pip, git fetch). Read only your worktree and the paths above. Never touch
-processes you did not start.
+No network (no curl, pip, git fetch). Read only your worktree and the paths above. Run `loop/`
+commands in the foreground and wait for them: never background them, wrap them in a lock of
+your own, or `pkill` by pattern (other agents' processes match it). Never touch processes you
+did not start.
 
 ## Time and sessions
 

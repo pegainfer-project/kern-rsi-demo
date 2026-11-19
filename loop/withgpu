@@ -4,6 +4,8 @@
 # so nobody's measurement sees anybody else's work. Builds do not need it.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/env.sh"
+# Inside a lease already (loop/ab under loop/withgpu): taking it again would wait on itself.
+[[ -n ${KERN_RSI_LEASE:-} ]] && exec "$@"
 # The lock lives in the main clone whatever STATE says, and opens read-only: an agent whose
 # sandbox writes only its worktree still takes the same lease.
 lock=$MAIN/state/gpu$GPU.lock
@@ -15,4 +17,4 @@ if ! flock -n "$fd"; then
 fi
 # A hung bench or replay never frees the card by itself (kern#148, #149), and on one card it
 # would stall every agent: the lease ends with SIGTERM after KERN_RSI_LEASE_SECONDS (1 hour).
-CUDA_VISIBLE_DEVICES=$GPU timeout -k 60 "${KERN_RSI_LEASE_SECONDS:-3600}" "$@"
+KERN_RSI_LEASE=1 CUDA_VISIBLE_DEVICES=$GPU timeout -k 60 "${KERN_RSI_LEASE_SECONDS:-3600}" "$@"
