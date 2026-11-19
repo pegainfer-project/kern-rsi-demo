@@ -35,7 +35,7 @@ grep -q "\"$SM\"" kernels.toml || { echo "start: $SM is not in kernels.toml's ar
 [[ $(git rev-parse --abbrev-ref HEAD) == main && -z $(git status --porcelain --untracked-files=no) ]] ||
   { echo "start: the loop lands on main: check out main with a clean tree"; exit 1; }
 free=$(nvidia-smi -i "$GPU" --query-gpu=memory.free --format=csv,noheader,nounits)
-((free >= 22000)) || { echo "start: GPU $GPU has $free MiB free; the loop needs 22000"; exit 1; }
+((free >= 15000)) || { echo "start: GPU $GPU has $free MiB free; the loop needs 15000"; exit 1; }
 git submodule update --init third_party/flashinfer third_party/kern
 [[ -n $(git config user.email) ]] || git config user.email "agent@kern-rsi-demo.invalid"
 [[ -n $(git config user.name) ]] || git config user.name "kern-rsi-demo agent"

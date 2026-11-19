@@ -16,7 +16,7 @@ the gates are all in this directory, and `../start.sh` turns it.
 ## One number
 
 `cost` is what `kern bench` prices [`../workload.toml`](../workload.toml) at: every shape of a
-real agent service's traffic (decode steps of 1-16 sequences over 1k-26k of context, prefill in
+real agent service's traffic (decode steps of 1-16 sequences over 0.3k-6k of context, prefill in
 1024-row chunks), timed on this GPU from the manifest's own CUDA graphs, times how often it
 ran. It is GPU seconds for the same traffic, so it moves only when kernels do. A change counts
 when `loop/ab` (both manifests under one GPU lease, A B B A) shows it.

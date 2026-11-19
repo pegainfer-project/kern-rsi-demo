@@ -13,4 +13,6 @@ if ! flock -n "$fd"; then
   echo "withgpu: waiting for GPU $GPU" >&2
   flock "$fd"
 fi
-CUDA_VISIBLE_DEVICES=$GPU "$@"
+# A hung bench or replay never frees the card by itself (kern#148, #149), and on one card it
+# would stall every agent: the lease ends with SIGTERM after KERN_RSI_LEASE_SECONDS (1 hour).
+CUDA_VISIBLE_DEVICES=$GPU timeout -k 60 "${KERN_RSI_LEASE_SECONDS:-3600}" "$@"

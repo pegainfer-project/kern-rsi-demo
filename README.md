@@ -11,7 +11,7 @@ real traffic shapes and checked against the version before it.
 
 ## Start
 
-An NVIDIA GPU from Ampere on (sm_80, 86, 89, 90, 100, 103, 120, 121) with 24 GB, a driver for
+An NVIDIA GPU from Ampere on (sm_80, 86, 89, 90, 100, 103, 120, 121) with 16 GB, a driver for
 CUDA 13.3, Docker with the NVIDIA container toolkit, and an account for a coding agent CLI
 (Claude Code by default; Codex and others through [humanize](https://github.com/humanfia/humanize)).
 
@@ -39,14 +39,14 @@ through a lease, and each run lands on main only if it lowers the cost by 0.5%, 
 guarded shape by 2%, and passes the numerics gate against main.
 
 The cost is GPU seconds of [`workload.toml`](workload.toml): the decode and prefill shapes of
-8.3 hours of a public agent service traced by kern-serve, scaled to Qwen3-4B's 32k context,
+8.3 hours of a public agent service traced by kern-serve, scaled to an 8k context,
 each weighted by how often it ran. Bring your own traffic by replacing that file.
 
 ## The starting point
 
-On a GB300, the starting manifest prices the workload at 2481 GPU s: cuBLASLt GEMMs 32%,
-FlashInfer prefill attention 31%, decode attention 20%, the rest small elementwise kernels at a
-few percent of the card's bandwidth. Against transformers (teacher-forced, 16 steps over four
+On a GB300, the starting manifest prices the workload at 1635 GPU s: cuBLASLt GEMMs 48%,
+FlashInfer prefill attention 14%, decode attention 12%, the rest small elementwise kernels at a
+few percent of the card's bandwidth; `kern bench` peaks at 13.3 GB. Against transformers (teacher-forced, 16 steps over four
 prompts and two chunk sizes), mean KL ≤ 2.3e-3, the only top-1 flips at exact ties
 ([`results/accuracy-sm103.json`](results/accuracy-sm103.json)).
 

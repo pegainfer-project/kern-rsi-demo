@@ -2,7 +2,7 @@
 # loop/check BUNDLE OUT [BASE]: the numerics gate. kern test of a bundle against BASE (default
 # main's, state/main/bundle) under the GPU lease: every changed call replayed from main's inputs,
 # the end-to-end logits, prefill over every chunk size, and the noise floor, at as long a context
-# as the card holds (~3k tokens on 24 GB, the served 32k on a large card). Writes OUT.json and
+# as the card holds (1k tokens on 16 GB, the served 8k on a large card). Writes OUT.json and
 # OUT.log; the last line is the verdict, PASS / FAIL / INCONCLUSIVE (exit 0 / 1 / 2).
 set -uo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/env.sh"
@@ -35,8 +35,8 @@ capacity=$(python3 - "$base/model.json" "$(nvidia-smi -i "$GPU" --query-gpu=memo
 import json, sys
 m, total_mib = json.load(open(sys.argv[1])), int(sys.argv[2])
 per_token = sum(s["bytes_per_token"] for s in m["states"].values())
-spare = (total_mib - 12 * 1024) * 2**20
-print(max(1024, min(32768, spare // (26 * per_token) // 1024 * 1024)))
+spare = (total_mib - 11 * 1024) * 2**20
+print(max(1024, min(8192, spare // (26 * per_token) // 1024 * 1024)))
 PY
 )
 "$LOOP/withgpu" "$KERN" test --capacity "$capacity" --reference "$base/model.json" --manifest "$work/model.json" \

@@ -19,7 +19,10 @@ notes, what it tried and measured, and `git log` what landed.
    this GPU: a decode step reads every weight once (8.0 GB) and its sequences' KV, so its floor
    is bytes over the card's memory bandwidth; a 1024-row prefill chunk's GEMMs and attention are
    compute, against the card's BF16 tensor throughput. Skip what earlier notes show is at its
-   floor. Prefer targets whose savings are large in GPU seconds, not in percent of one kernel.
+   floor. A call's time counts its PDL wait on the call before it (kern#150): once main uses
+   `pdl`, ops split into many calls look costlier than they are, so read the scenarios' graph
+   times beside the split. Prefer targets whose savings are large in GPU seconds, not in
+   percent of one kernel.
 2. **Split.** Give each run a disjoint set of ops along kernel boundaries, so two runs never
    edit the same kernel or the same calls in `scripts/gen.py`. Runs on neighbouring ops whose
    wins depend on each other belong in one run.

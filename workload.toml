@@ -3,54 +3,55 @@
 # Adapted from 8.3 hours of a public Qwen3.8-27B agent service traced by kern-serve
 # (Pegainfer/kern-traces@7fbcaec, qwen3.8-27b-kern/20261118T050748Z, rank 0):
 # 303514 decode rounds and 29076 prefill chunks. Weights are the trace's call counts.
-# The service ran up to 256k of context and Qwen3-4B runs 32k, so every context is
-# scaled by 1/8; each bucket is a quartile of its shape's calls at the quartile's mean
-# context. A speculative round there is a one-row decode step here. The largest
-# scenario holds ~45k tokens of KV (6.6 GB), which fits a 24 GB card beside the weights.
+# The service ran up to 256k of context and the demo serves 8k on a 16 GB card, so every
+# context is scaled by 1/32; each bucket is a quartile of its shape's calls at the
+# quartile's mean context. A speculative round there is a one-row decode step here. The
+# largest scenario and the shared prefix hold ~18k tokens of KV (2.7 GB) beside the 8 GB
+# of weights: kern bench peaks near 13 GB.
 samples = 16
 seed = 24301
 
 # decode, 1 sequence: 78% of the rounds
 [[sweep]]
 rows = [1]
-context = [13012, 18847, 21050, 25717]
+context = [3253, 4712, 5262, 6429]
 weight = 59455
 
 # decode, 2 sequences
 [[sweep]]
 groups = [2]
 rows = [1]
-context = [10602, 16315, 19497, 22441]
+context = [2650, 4078, 4874, 5610]
 weight = 13080
 
 # decode, 4 sequences
 [[sweep]]
 groups = [4]
 rows = [1]
-context = [7927, 10078, 10544, 11775]
+context = [1982, 2520, 2636, 2944]
 weight = 3203
 
 # decode, 8 and 16 sequences: a short tail of short sessions
 [[sweep]]
 groups = [8]
 rows = [1]
-context = [2824]
+context = [706]
 weight = 319
 
 [[sweep]]
 groups = [16]
 rows = [1]
-context = [1362]
+context = [340]
 weight = 247
 
 # prefill, full 1024-row chunks: 97% of the chunks
 [[sweep]]
 chunk = [1024]
-context = [2297, 7407, 12696, 19855]
+context = [574, 1852, 3174, 4964]
 weight = 7037
 
 # prefill, a turn's short tail (median 150 rows)
 [[sweep]]
 chunk = [160]
-context = [24, 2266, 14981, 22391]
+context = [6, 566, 3745, 5598]
 weight = 232

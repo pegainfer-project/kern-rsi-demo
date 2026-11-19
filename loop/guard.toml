@@ -10,17 +10,22 @@ groups = [1, 2, 3, 4, 6, 8, 12, 16]
 rows = [1]
 context = [512]
 
-# Long contexts at the batch sizes a 24 GB card holds them for (~32k tokens of KV).
+# Long contexts at the batch sizes a 16 GB card holds them for (~8k tokens of KV).
 [[sweep]]
-groups = [1, 2, 4]
+groups = [1, 2]
 rows = [1]
-context = [8192]
+context = [4096]
+
+[[sweep]]
+groups = [4]
+rows = [1]
+context = [2048]
 
 [[sweep]]
 groups = [1]
 rows = [1]
-context = [32000]
+context = [8000]
 
 [[sweep]]
 chunk = [1, 16, 64, 256, 512, 1024]
-context = [0, 16384]
+context = [0, 4096]

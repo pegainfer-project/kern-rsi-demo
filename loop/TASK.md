@@ -10,13 +10,13 @@ names your target for this run; this file covers what holds for every run.
 
 **`cost` from `loop/bench`, lower is better**: the GPU seconds the traffic in `workload.toml`
 costs on this GPU. That traffic is a real agent service's steps (decode steps of 1-16
-sequences over 1k-26k of context, prefill in 1024-row chunks), each shape weighted by how often
+sequences over 0.3k-6k of context, prefill in 1024-row chunks), each shape weighted by how often
 it ran. `loop/score.py ops REPORT` splits the cost by op, decode and prefill apart.
 
 ## The rules
 
 - **Fixed**: the model's weights and their BF16 precision, the KV cache's layout (pages of 16
-  slots, each `[K/V, kv_heads, 128]` in BF16), the served bounds in `loop/env.sh` (32k context,
+  slots, each `[K/V, kv_heads, 128]` in BF16), the served bounds in `loop/env.sh` (8k context,
   1024-row chunks, 16 sequences), the kern runtime (`third_party/kern`: read it, never change it).
 - **Open**: every kernel and every launch: another tile, another kernel, a fused epilogue, fewer
   launches, a launch routed by batch size with `when: {var, min, max}` (`docs/manifest.md`).
@@ -59,7 +59,10 @@ worktree, and take the GPU only through `loop/` commands, never with a lock of y
 `edit -> loop/make -> loop/check -> loop/ab` is 5-15 minutes.
 
 `kern bench` checks that a replay emits the tokens the one before it did: a kernel that is not
-deterministic run to run fails the bench. Keep every kernel deterministic.
+deterministic run to run fails the bench. Keep every kernel deterministic. A lease ends after an
+hour whatever runs under it. Known runtime hang: a PDL call whose `after` names a lane on which
+no call launches at some var values (every launch gated off by `when`) never finishes its
+replay (kern#148); give such a lane a launch at every value, or join it without `pdl`.
 
 ## Commits and wins
 
