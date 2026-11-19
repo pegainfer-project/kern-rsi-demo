@@ -54,7 +54,8 @@ fi
 
 end=$(($(date +%s) + hours * 3600))
 round_s=$((${KERN_RSI_ROUND_MINUTES:-90} * 60 + 900))
-n=$(($(ls -d "$STATE"/rounds/r* 2>/dev/null | wc -l) + 1))
+mkdir -p "$STATE/rounds"
+n=$(($(find "$STATE/rounds" -mindepth 1 -maxdepth 1 -name "r*" | wc -l) + 1))
 dry=0
 while (($(date +%s) + round_s <= end && dry < 2)); do
   before=$(git rev-parse HEAD)
