@@ -40,7 +40,7 @@ Never commit `build/`, `out/`, `work/`.
 
 ## Tools
 
-All run from your worktree's root. The GPU is one card shared by every agent: commands that use
+All run from your clone's root. The GPU is one card shared by every agent: commands that use
 it take its lease through `loop/withgpu` themselves and wait when another agent holds it. Never
 run GPU work outside a `loop/` command or `loop/withgpu`.
 
@@ -55,7 +55,7 @@ run GPU work outside a `loop/` command or `loop/withgpu`.
 Main's bundle and report are `state/main/bundle` and `state/main/bench.json` in the main clone
 (`$STATE/main/...`; `source loop/env.sh` sets `$STATE`): compare against them with `loop/ab`,
 do not re-measure main. `state/` is the orchestrator's and read-only to you: write only in your
-worktree, and take the GPU only through `loop/` commands, never with a lock of your own. The lease is shared, so a cycle's wall time includes waiting for it:
+clone, and take the GPU only through `loop/` commands, never with a lock of your own. The lease is shared, so a cycle's wall time includes waiting for it:
 `edit -> loop/make -> loop/check -> loop/ab` is 5-15 minutes.
 
 `kern bench` checks that a replay emits the tokens the one before it did: a kernel that is not
@@ -84,7 +84,7 @@ replay (kern#148); give such a lane a launch at every value, or join it without 
 
 ## Boundaries
 
-No network (no curl, pip, git fetch). Read only your worktree and the paths above. Run `loop/`
+No network (no curl, pip, git fetch). Read only your clone and the paths above. Run `loop/`
 commands in the foreground and wait for them: never background them, wrap them in a lock of
 your own, or `pkill` by pattern (other agents' processes match it). Never touch processes you
 did not start.
@@ -96,7 +96,7 @@ Work until the deadline. If your target is closed (at its roofline, or fused as 
 sensibly goes), write why in `notes/<run>.md`, then take the next most expensive op that `ROUND.md`
 does not give to another run.
 
-This runs as a loop of fresh sessions. Your only memory is the worktree:
+This runs as a loop of fresh sessions. Your only memory is the clone:
 
 - **`notes/<run>.md`**: read it first, and the other files in `notes/` from earlier rounds; update it before you stop: the current cost, what dominates
   your target, every idea tried with its measured result and why it was kept or reverted.

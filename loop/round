@@ -40,7 +40,7 @@ done
 { printf '| run | target | commits | outcome |\n|---|---|---|---|\n'
   for b in "${briefs[@]:0:$lanes}"; do
     name=r$n-$(basename "$b" .md)
-    commits=$(git -C "$MAIN" rev-list --count "main..agent/$name" 2>/dev/null || echo 0)
+    commits=$(git -C "$STATE/runs/$name" rev-list --count main..HEAD 2>/dev/null || echo 0)
     result=$("$LOOP/land" "$name" 2>&1 | tail -n 1) || true
     printf '| %s | %s | %s | %s |\n' "$name" "$(head -n 1 "$b" | sed 's/^Target: //')" "$commits" "$result"
   done; } > "$dir/summary.md"

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # loop/check BUNDLE OUT [BASE]: the numerics gate. kern test of a bundle against BASE (default
 # main's, state/main/bundle) under the GPU lease: every changed call replayed from main's inputs,
-# the end-to-end logits, prefill over every chunk size, and the noise floor, at as long a context
-# as the card holds (1k tokens on 16 GB, the served 8k on a large card). Writes OUT.json and
+# the end-to-end logits, prefill over every chunk size, and the noise floor, at as long a prompt
+# as the card holds (~200 tokens on 16 GB, the served 8k on a large card). Writes OUT.json and
 # OUT.log; the last line is the verdict, PASS / FAIL / INCONCLUSIVE (exit 0 / 1 / 2).
 set -uo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/env.sh"
@@ -29,17 +29,23 @@ for op in m["ops"].values():
 json.dump(m, open(work / "model.json", "w"))
 print("modules changed:", ", ".join(sorted(changed)) or "none")
 PY
-# kern test keeps the state of each of its 25 runs on the GPU: the capacity is what the card
-# holds beside the weights, up to the served context.
-capacity=$(python3 - "$base/model.json" "$(nvidia-smi -i "$GPU" --query-gpu=memory.total --format=csv,noheader,nounits)" <<'PY'
+# kern test holds every run's state and every span's outputs on the GPU. On Qwen3-4B its peak
+# was the weights less 1 GiB, plus ~30 KV rows per token of capacity and ~152 per prefill token
+# (GB300: 14.6 GB at 1024 / 214, 47.3 GB at 2048 / 1546), so the card's memory sets both, up to
+# the served context.
+read -r capacity prefill <<<"$(python3 - "$base/model.json" "$WEIGHTS" \
+  "$(nvidia-smi -i "$GPU" --query-gpu=memory.total --format=csv,noheader,nounits)" <<'PY'
 import json, sys
-m, total_mib = json.load(open(sys.argv[1])), int(sys.argv[2])
-per_token = sum(s["bytes_per_token"] for s in m["states"].values())
-spare = (total_mib - 11 * 1024) * 2**20
-print(max(1024, min(8192, spare // (26 * per_token) // 1024 * 1024)))
+from pathlib import Path
+m, weights, total = json.load(open(sys.argv[1])), Path(sys.argv[2]), int(sys.argv[3]) * 2**20
+row = sum(s["bytes_per_token"] for s in m["states"].values())
+budget = total - 600 * 2**20 - (sum(f.stat().st_size for f in weights.glob("*.safetensors")) - 2**30)
+cap = max(1024, min(8192, budget // 2 // (30 * row) // 1024 * 1024))
+prefill = max(16, min(cap - 64, (budget - 30 * row * cap) // (152 * row) // 16 * 16))
+print(cap, prefill)
 PY
-)
-"$LOOP/withgpu" "$KERN" test --capacity "$capacity" --reference "$base/model.json" --manifest "$work/model.json" \
+)"
+"$LOOP/withgpu" "$KERN" test --capacity "$capacity" --prefill "$prefill" --reference "$base/model.json" --manifest "$work/model.json" \
   --kernels "$work/kernels" --weights "$WEIGHTS" --tokenizer "$WEIGHTS/tokenizer.json" --gpu 0 \
   --out "$out.json" > "$out.log" 2>&1
 rc=$?

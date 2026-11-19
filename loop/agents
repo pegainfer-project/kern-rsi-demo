@@ -7,7 +7,9 @@
 #   loop/agents down [NAME]             stop one agent, or all
 #   loop/agents status                  each run's commits ahead of main
 #
-# An agent is a worktree of this clone on branch `agent/NAME` (state/runs/NAME), driven by
+# An agent works in a clone of this one (`git clone --shared`, state/runs/NAME) on branch
+# `agent/NAME`: its git metadata is inside its own directory, the only place an agent's sandbox
+# may write, so it can commit. loop/land fetches the branch from there. It is driven by
 # humanize's `ralph_loop` (a fresh session each round until the deadline) in a tmux window of
 # session `kern-rsi`. humanize is what makes the harness a choice: KERN_RSI_AGENT names it.
 # The prompt is loop/TASK.md followed by the run's ROUND.md: its brief, the deadline, messages.
@@ -19,7 +21,11 @@ runs=$STATE/runs
 worktree() {
   local name=$1 dir=$runs/$1
   [[ -d $dir ]] && return
-  git -C "$MAIN" worktree add -q -B "agent/$name" "$dir" main
+  git clone -q --shared --branch main "$MAIN" "$dir"
+  git -C "$dir" checkout -q -b "agent/$name"
+  git -C "$dir" config user.name "$(git -C "$MAIN" config user.name)"
+  git -C "$dir" config user.email "$(git -C "$MAIN" config user.email)"
+  git -C "$dir" config kern-rsi.main "$MAIN"
   # Submodules from this clone's own checkouts: an agent has no network.
   local m
   for m in third_party/flashinfer third_party/kern; do

@@ -10,6 +10,7 @@ set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/env.sh"
 name=$1 work=$STATE/land/$1
 branch=agent/$name
+git -C "$MAIN" fetch -q "$STATE/runs/$name" "+$branch:$branch" 2>/dev/null || { echo "land: no run $name"; exit 4; }
 [[ $(git -C "$MAIN" rev-list --count "main..$branch") -gt 0 ]] || { echo "land: $name has no commits"; exit 4; }
 rm -rf "$work" && mkdir -p "$work"
 git -C "$MAIN" worktree remove --force "$work/tree" 2>/dev/null || true

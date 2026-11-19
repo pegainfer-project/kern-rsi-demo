@@ -29,7 +29,7 @@ into one (`third_party/kern/docs/bench.md`), or write the shapes by hand.
 | phase | what | who | time |
 |---|---|---|---|
 | dispatch | rank main's ops by GPU seconds, estimate headroom, split the work along kernel boundaries, write one brief per run | one fresh agent session (`hmz exec -f chat`) | ~5 min |
-| optimize | each run in its own worktree and branch `agent/rN-<target>`: edit, `loop/make`, `loop/check`, `loop/ab`, commit each win | one agent per brief (`hmz exec -f ralph_loop`), until the deadline | `KERN_RSI_ROUND_MINUTES` (90) |
+| optimize | each run in its own clone and branch `agent/rN-<target>`: edit, `loop/make`, `loop/check`, `loop/ab`, commit each win | one agent per brief (`hmz exec -f ralph_loop`), until the deadline | `KERN_RSI_ROUND_MINUTES` (90) |
 | land | squash each run onto main, rebuild, A/B against main, check, fast-forward on a win | `loop/land` | ~5 min a run |
 
 Every run's `notes/<run>.md` lands with it, so the next round's dispatch and agents read what
@@ -70,4 +70,4 @@ measurement ever sees anybody else's kernels.
 | `loop/round N` / `loop/land NAME` | one round / one landing, by hand | lease |
 
 State lives in `state/`: `main/` (main's bundle and report), `HISTORY.md` (every landing),
-`rounds/rN/` (briefs, dispatch log, summary), `runs/` (the agents' worktrees), `land/`.
+`rounds/rN/` (briefs, dispatch log, summary), `runs/` (the agents' clones), `land/`.

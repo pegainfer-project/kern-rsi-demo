@@ -1,9 +1,10 @@
-# Sourced by every loop/ script. TREE is the checkout the command runs in (main or an agent's
-# worktree); MAIN is the clone everything shares, STATE its loop state. Every default here is a
+# Sourced by every loop/ script. TREE is the checkout the command runs in (main, a landing's
+# worktree, or an agent's clone, which names main in `kern-rsi.main`); MAIN is the clone
+# everything shares, STATE its loop state. Every default here is a
 # variable start.sh's --help lists.
 set -a
 TREE=$(git rev-parse --show-toplevel)
-MAIN=$(cd "$(git rev-parse --path-format=absolute --git-common-dir)/.." && pwd)
+MAIN=$(git config kern-rsi.main || (cd "$(git rev-parse --path-format=absolute --git-common-dir)/.." && pwd))
 LOOP=$MAIN/loop
 STATE=${KERN_RSI_STATE:-$MAIN/state}
 WEIGHTS=${KERN_RSI_WEIGHTS:-$MAIN/weights/Qwen3-4B}
