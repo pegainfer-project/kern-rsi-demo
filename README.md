@@ -53,6 +53,15 @@ docker run --rm -it --gpus all \
   kern-rsi-demo ./start.sh 8
 ```
 
+Once the first round's agents start, open another terminal on the host and run this
+from the repository root to follow their logs. Press Ctrl-C to stop watching.
+
+```sh
+tail -n 20 -F state/runs/r1-*/.session.log
+```
+
+For later rounds, replace `r1` with the round you want to watch.
+
 ## What turns
 
 [`loop/README.md`](loop/README.md) is the loop: a coordinator session ranks the cost by op and
