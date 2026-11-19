@@ -4,7 +4,11 @@
 # so nobody's measurement sees anybody else's work. Builds do not need it.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/env.sh"
-exec {fd}>"$STATE/gpu$GPU.lock"
+# The lock lives in the main clone whatever STATE says, and opens read-only: an agent whose
+# sandbox writes only its worktree still takes the same lease.
+lock=$MAIN/state/gpu$GPU.lock
+[[ -e $lock ]] || : > "$lock"
+exec {fd}<"$lock"
 if ! flock -n "$fd"; then
   echo "withgpu: waiting for GPU $GPU" >&2
   flock "$fd"

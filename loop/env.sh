@@ -15,4 +15,4 @@ SM=${KERN_RSI_SM:-sm_$(nvidia-smi -i "$GPU" --query-gpu=compute_cap --format=csv
 # The served bounds: 32k of context, 1024-row prefill chunks, up to 16 sequences a decode step.
 GEN_BOUNDS="--context 32768 --max-tokens 1024 --max-seqs 16"
 set +a
-mkdir -p "$STATE"
+mkdir -p "$STATE" 2>/dev/null || true

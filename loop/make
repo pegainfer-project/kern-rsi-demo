@@ -5,9 +5,9 @@ set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/env.sh"
 out=$(realpath -m "${1:-$TREE/out/$SM}")
 cd "$TREE"
-python3 scripts/build.py --sm "$SM" --nvcc "$NVCC" > "$STATE/make.$$.log" 2>&1 || { tail -20 "$STATE/make.$$.log"; exit 1; }
+mkdir -p build
+python3 scripts/build.py --sm "$SM" --nvcc "$NVCC" > build/make.log 2>&1 || { tail -20 build/make.log; exit 1; }
 # shellcheck disable=SC2086
 python3 scripts/gen.py --checkpoint "$WEIGHTS" --kernels "build/$SM" --out "$out" --gpu "$GPU" $GEN_BOUNDS
 "$KERN" verify "$out/model.json" > "$out/verify.log" 2>&1 || { cat "$out/verify.log"; exit 1; }
-rm -f "$STATE/make.$$.log"
 echo "make: $out"

@@ -54,7 +54,8 @@ run GPU work outside a `loop/` command or `loop/withgpu`.
 
 Main's bundle and report are `state/main/bundle` and `state/main/bench.json` in the main clone
 (`$STATE/main/...`; `source loop/env.sh` sets `$STATE`): compare against them with `loop/ab`,
-do not re-measure main. The lease is shared, so a cycle's wall time includes waiting for it:
+do not re-measure main. `state/` is the orchestrator's and read-only to you: write only in your
+worktree, and take the GPU only through `loop/` commands, never with a lock of your own. The lease is shared, so a cycle's wall time includes waiting for it:
 `edit -> loop/make -> loop/check -> loop/ab` is 5-15 minutes.
 
 `kern bench` checks that a replay emits the tokens the one before it did: a kernel that is not
