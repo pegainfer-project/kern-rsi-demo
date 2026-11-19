@@ -2,7 +2,7 @@
 # loop/check BUNDLE OUT [BASE]: the numerics gate. kern test of a bundle against BASE (default
 # main's, state/main/bundle) under the GPU lease: every changed call replayed from main's inputs,
 # the end-to-end logits, prefill over every chunk size, and the noise floor, at as long a prompt
-# as the card holds (~200 tokens on 16 GB, the served 8k on a large card). Writes OUT.json and
+# as the card holds (~200 tokens on 16 GB, 2048 on a large card). Writes OUT.json and
 # OUT.log; the last line is the verdict, PASS / FAIL / INCONCLUSIVE (exit 0 / 1 / 2).
 set -uo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/env.sh"
@@ -31,8 +31,8 @@ print("modules changed:", ", ".join(sorted(changed)) or "none")
 PY
 # kern test holds every run's state and every span's outputs on the GPU. On Qwen3-4B its peak
 # was the weights less 1 GiB, plus ~30 KV rows per token of capacity and ~152 per prefill token
-# (GB300: 14.6 GB at 1024 / 214, 47.3 GB at 2048 / 1546), so the card's memory sets both, up to
-# the served context.
+# (GB300: 14.6 GB at 1024 / 214, 47.3 GB at 2048 / 1546), and faster than that past ~2k (8192 /
+# 8128 ran out of 284 GB), so the card's memory sets both, the prompt up to 2048.
 read -r capacity prefill <<<"$(python3 - "$base/model.json" "$WEIGHTS" \
   "$(nvidia-smi -i "$GPU" --query-gpu=memory.total --format=csv,noheader,nounits)" <<'PY'
 import json, sys
@@ -41,7 +41,7 @@ m, weights, total = json.load(open(sys.argv[1])), Path(sys.argv[2]), int(sys.arg
 row = sum(s["bytes_per_token"] for s in m["states"].values())
 budget = total - 600 * 2**20 - (sum(f.stat().st_size for f in weights.glob("*.safetensors")) - 2**30)
 cap = max(1024, min(8192, budget // 2 // (30 * row) // 1024 * 1024))
-prefill = max(16, min(cap - 64, (budget - 30 * row * cap) // (152 * row) // 16 * 16))
+prefill = max(16, min(2048, (budget - 30 * row * cap) // (152 * row) // 16 * 16))
 print(cap, prefill)
 PY
 )"
