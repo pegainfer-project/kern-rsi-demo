@@ -19,6 +19,11 @@ CUDA 13.3, Docker with the NVIDIA container toolkit, and an account for a coding
 git clone https://github.com/pegainfer-project/kern-rsi-demo && cd kern-rsi-demo
 git submodule update --init         # kern and FlashInfer, not FlashInfer's own submodules
 docker build -t kern-rsi-demo .
+```
+
+### Run with Claude Code
+
+```sh
 docker run --gpus all -it --rm -u "$(id -u):$(id -g)" -v "$PWD:/work" \
   -v "$HOME/.claude:/home/agent/.claude" -v "$HOME/.claude.json:/home/agent/.claude.json" \
   kern-rsi-demo
@@ -28,8 +33,25 @@ docker run --gpus all -it --rm -u "$(id -u):$(id -g)" -v "$PWD:/work" \
 `start.sh` fetches Qwen3-4B (8 GB), measures the starting manifest, then turns rounds until the
 hours are spent. It runs in tmux: `tmux attach -t kern-rsi`, one window per agent. What landed
 is in `state/HISTORY.md` and in `git log`. Knobs (agent, runs per round, round length, GPU)
-are listed at the top of [`start.sh`](start.sh); with Codex, mount `~/.codex` and set
-`KERN_RSI_AGENT=codex/<model>:high`.
+are listed at the top of [`start.sh`](start.sh).
+
+### Run with Codex
+
+Sign in to Codex on the host. From the repository root, run the command below with the
+absolute path to your Qwen3-4B checkpoint and a Codex model available to you. The main
+loop runs in the foreground, so keep the terminal open.
+
+```sh
+docker run --rm -it --gpus all \
+  -u "$(id -u):$(id -g)" \
+  -v "$PWD:/work" \
+  --mount "type=bind,src=/path/to/Qwen3-4B,dst=/models/Qwen3-4B,readonly" \
+  -v "$HOME/.codex:/home/agent/.codex" \
+  -e KERN_RSI_WEIGHTS=/models/Qwen3-4B \
+  -e KERN_RSI_AGENT=codex/gpt-6.2-astra:high \
+  -e KERN_RSI_FOREGROUND=1 \
+  kern-rsi-demo ./start.sh 8
+```
 
 ## What turns
 
