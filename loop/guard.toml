@@ -1,0 +1,26 @@
+# What the traffic in workload.toml never reached but the manifest admits: every decode batch
+# size up to its 16 sequences, and every prefill chunk size up to its 1024 rows, short and
+# long. loop/ab holds a candidate to "no scenario here more than 2% slower than main", so a
+# kernel tuned to the traffic's shapes cannot quietly regress the rest.
+samples = 12
+seed = 24301
+
+[[sweep]]
+groups = [1, 2, 3, 4, 6, 8, 12, 16]
+rows = [1]
+context = [512]
+
+# Long contexts at the batch sizes a 24 GB card holds them for (~32k tokens of KV).
+[[sweep]]
+groups = [1, 2, 4]
+rows = [1]
+context = [8192]
+
+[[sweep]]
+groups = [1]
+rows = [1]
+context = [32000]
+
+[[sweep]]
+chunk = [1, 16, 64, 256, 512, 1024]
+context = [0, 16384]

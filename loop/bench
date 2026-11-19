@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# loop/bench BUNDLE OUT [WORKLOAD]: kern bench of a bundle (loop/make's OUT) over WORKLOAD
+# (default workload.toml) under the GPU lease. Writes OUT.json and OUT.log; prints every
+# scenario's p50 and the cost, the loop's objective: GPU seconds of the traffic, lower is better.
+set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/env.sh"
+bundle=$(realpath "$1") out=$(realpath -m "$2") workload=$(realpath "${3:-$MAIN/workload.toml}")
+mkdir -p "$(dirname "$out")"
+"$LOOP/withgpu" "$KERN" bench --manifest "$bundle/model.json" --kernels "$bundle/kernels" \
+  --weights "$WEIGHTS" --tokenizer "$WEIGHTS/tokenizer.json" --gpu 0 \
+  --workload "$workload" --out "$out.json" > "$out.log" 2>&1 || { tail -20 "$out.log"; exit 1; }
+python3 "$LOOP/score.py" show "$out.json"

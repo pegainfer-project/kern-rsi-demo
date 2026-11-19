@@ -1,0 +1,21 @@
+# CUDA BF16 needs SM80 or later. Each architecture gets its own cubins and hashes.
+architectures = ["sm_80", "sm_86", "sm_89", "sm_90", "sm_100", "sm_103", "sm_120", "sm_121"]
+
+[upstreams.flashinfer]
+revision = "d84335d8c54e0c8f9f7e22faa15c7e34a58abf94"
+path = "third_party/flashinfer"
+license = "Apache-2.0"
+
+[upstreams.kern]
+revision = "90596d326b9b46094524d47c7f77c5eb0162f8f6"
+path = "third_party/kern"
+license = "Apache-2.0"
+
+# One cubin per module. Dense Qwen3 has head_dim 128 at every size.
+[modules]
+qwen3 = "source/qwen3.cu"
+elementwise = "source/elementwise.cu"
+sampling = "source/sampling.cu"
+sample_glue = "source/sample_glue.cu"
+attention_plan = "source/attention_plan.cu"
+attention = "source/attention.cu"

@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# loop/land NAME: the orchestrator's merge of run NAME into main.
+#
+# Squashes `agent/NAME` onto main in a scratch worktree, builds its bundle, A/Bs it against
+# main's (loop/ab, two pairs) and gates its numerics (loop/check). It lands only as a win:
+# cost down at least 0.5%, no guard scenario 2% slower, check PASS. Then main fast-forwards to
+# the squash, main's bundle and report are rebuilt, and HISTORY.md gets its row. Exit 0 landed,
+# 3 not a win, 4 nothing to land or a conflict, 1 an error.
+set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/env.sh"
+name=$1 work=$STATE/land/$1
+branch=agent/$name
+[[ $(git -C "$MAIN" rev-list --count "main..$branch") -gt 0 ]] || { echo "land: $name has no commits"; exit 4; }
+rm -rf "$work" && mkdir -p "$work"
+git -C "$MAIN" worktree remove --force "$work/tree" 2>/dev/null || true
+git -C "$MAIN" worktree add -q -B "land/$name" "$work/tree" main
+cd "$work/tree"
+for m in third_party/flashinfer third_party/kern; do
+  git config "submodule.$m.url" "$MAIN/$m"
+  git -c protocol.file.allow=always submodule update -q --init "$m"
+done
+git merge -q --squash "$branch" > /dev/null 2>&1 || { git merge --abort 2>/dev/null; echo "land: $name conflicts with main"; exit 4; }
+"$LOOP/make" "$work/bundle" > "$work/make.log" 2>&1 || { tail -5 "$work/make.log"; exit 1; }
+"$LOOP/ab" "$STATE/main/bundle" "$work/bundle" "$work/ab" 2 | tee "$work/ab.txt"
+verdict=$(tail -n 1 "$work/ab.txt")
+check=0
+"$LOOP/check" "$work/bundle" "$work/check" | tee "$work/check.txt" || check=$?
+win=$(python3 -c "import json,sys; print(json.loads(sys.argv[1])['win'])" "$verdict")
+if [[ $win != True || $check != 0 ]]; then
+  echo "land: $name is not a win (ab win=$win, check exit $check)"
+  exit 3
+fi
+read -r before after change <<<"$(python3 -c "import json,sys; v=json.loads(sys.argv[1]); print(v['a'], v['b'], v['change_pct'])" "$verdict")"
+subjects=$(git -C "$MAIN" log --reverse --format='- %s' "main..$branch")
+git commit -q -s -F - <<EOF
+$(git -C "$MAIN" log -1 --format=%s "$branch")
+
+Landed from run $name: cost $before -> $after GPU s ($change%) on loop/ab, check PASS.
+
+$subjects
+EOF
+git -C "$MAIN" merge -q --ff-only "land/$name"
+"$LOOP/make" "$STATE/main/bundle" > "$work/main-make.log" 2>&1
+cp "$work/ab/b-1.json" "$STATE/main/bench.json"
+n=$(grep -cE '^\| [0-9]+ \|' "$STATE/HISTORY.md")
+echo "| $n | $(git -C "$MAIN" log -1 --format=%h) | $name | $(git -C "$MAIN" log -1 --format=%s) | $after | $change% |" >> "$STATE/HISTORY.md"
+echo "land: $name landed as $(git -C "$MAIN" log -1 --format='%h %s') ($before -> $after GPU s, $change%)"

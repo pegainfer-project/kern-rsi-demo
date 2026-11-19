@@ -1,0 +1,89 @@
+{
+  "device": "NVIDIA GB300",
+  "torch": "2.14.0+cu130",
+  "checkpoint": "Qwen3-4B",
+  "transformers": "5.19.0",
+  "threshold": 0.01,
+  "results": [
+    {
+      "prompt": 0,
+      "chunk": 16,
+      "steps": 16,
+      "mean_kl": 0.0022537196055054665,
+      "max_kl": 0.017393700778484344,
+      "top1_matches": 15,
+      "mismatch_margins": [
+        0.0
+      ]
+    },
+    {
+      "prompt": 0,
+      "chunk": 1024,
+      "steps": 16,
+      "mean_kl": 0.0022537196055054665,
+      "max_kl": 0.017393700778484344,
+      "top1_matches": 15,
+      "mismatch_margins": [
+        0.0
+      ]
+    },
+    {
+      "prompt": 1,
+      "chunk": 16,
+      "steps": 16,
+      "mean_kl": 0.000647710170596838,
+      "max_kl": 0.0026854826137423515,
+      "top1_matches": 15,
+      "mismatch_margins": [
+        0.0
+      ]
+    },
+    {
+      "prompt": 1,
+      "chunk": 1024,
+      "steps": 16,
+      "mean_kl": 0.000647710170596838,
+      "max_kl": 0.0026854826137423515,
+      "top1_matches": 15,
+      "mismatch_margins": [
+        0.0
+      ]
+    },
+    {
+      "prompt": 2,
+      "chunk": 16,
+      "steps": 16,
+      "mean_kl": 0.0008180339355021715,
+      "max_kl": 0.0035001449286937714,
+      "top1_matches": 16,
+      "mismatch_margins": []
+    },
+    {
+      "prompt": 2,
+      "chunk": 1024,
+      "steps": 16,
+      "mean_kl": 0.0008180339355021715,
+      "max_kl": 0.0035001449286937714,
+      "top1_matches": 16,
+      "mismatch_margins": []
+    },
+    {
+      "prompt": 3,
+      "chunk": 16,
+      "steps": 16,
+      "mean_kl": 0.0006644805544055998,
+      "max_kl": 0.007587157189846039,
+      "top1_matches": 16,
+      "mismatch_margins": []
+    },
+    {
+      "prompt": 3,
+      "chunk": 1024,
+      "steps": 16,
+      "mean_kl": 0.0007709544734098017,
+      "max_kl": 0.007800568826496601,
+      "top1_matches": 16,
+      "mismatch_margins": []
+    }
+  ]
+}

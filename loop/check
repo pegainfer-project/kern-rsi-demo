@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# loop/check BUNDLE OUT [BASE]: the numerics gate. kern test of a bundle against BASE (default
+# main's, state/main/bundle) under the GPU lease: every changed call replayed from main's inputs,
+# the end-to-end logits, prefill over every chunk size, and the noise floor, at as long a context
+# as the card holds (~3k tokens on 24 GB, the served 32k on a large card). Writes OUT.json and
+# OUT.log; the last line is the verdict, PASS / FAIL / INCONCLUSIVE (exit 0 / 1 / 2).
+set -uo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/env.sh"
+cand=$(realpath "$1") out=$(realpath -m "$2") base=$(realpath "${3:-$STATE/main/bundle}")
+work=$out.d
+rm -rf "$work" && mkdir -p "$work/kernels"
+cp "$base"/kernels/*.cubin "$work/kernels/"
+# kern test diffs ops, not cubins: a module rebuilt under the same name would read as nothing to
+# test. Renamed in the candidate, every op on a changed module is a changed implementation.
+python3 - "$base/model.json" "$cand" "$work" <<'PY'
+import json, shutil, sys
+from pathlib import Path
+base, cand, work = json.load(open(sys.argv[1])), Path(sys.argv[2]), Path(sys.argv[3])
+m = json.load(open(cand / "model.json"))
+changed = {k for k, v in m["modules"].items() if base["modules"].get(k, {}).get("sha256") != v["sha256"]}
+for k in changed:
+    shutil.copy(cand / "kernels" / m["modules"][k]["source"], work / "kernels" / f"{k}+candidate.cubin")
+    m["modules"][k]["source"] = f"{k}+candidate.cubin"
+m["modules"] = {(k + "+candidate" if k in changed else k): v for k, v in m["modules"].items()}
+for op in m["ops"].values():
+    for launch in op["impl"].get("launches", []):
+        if launch.get("module") in changed:
+            launch["module"] += "+candidate"
+json.dump(m, open(work / "model.json", "w"))
+print("modules changed:", ", ".join(sorted(changed)) or "none")
+PY
+# kern test keeps the state of each of its 25 runs on the GPU: the capacity is what the card
+# holds beside the weights, up to the served context.
+capacity=$(python3 - "$base/model.json" "$(nvidia-smi -i "$GPU" --query-gpu=memory.total --format=csv,noheader,nounits)" <<'PY'
+import json, sys
+m, total_mib = json.load(open(sys.argv[1])), int(sys.argv[2])
+per_token = sum(s["bytes_per_token"] for s in m["states"].values())
+spare = (total_mib - 12 * 1024) * 2**20
+print(max(1024, min(32768, spare // (26 * per_token) // 1024 * 1024)))
+PY
+)
+"$LOOP/withgpu" "$KERN" test --capacity "$capacity" --reference "$base/model.json" --manifest "$work/model.json" \
+  --kernels "$work/kernels" --weights "$WEIGHTS" --tokenizer "$WEIGHTS/tokenizer.json" --gpu 0 \
+  --out "$out.json" > "$out.log" 2>&1
+rc=$?
+grep -E "logit|KL|flip|noise" "$out.log" | tail -6
+tail -n 1 "$out.log"
+exit $rc

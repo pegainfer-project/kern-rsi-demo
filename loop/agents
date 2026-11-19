@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+# loop/agents: the agents' side of the loop.
+#
+#   loop/agents up NAME BRIEF MINUTES   start agent NAME on BRIEF (a dispatch brief) until MINUTES pass
+#   loop/agents tell NAME MESSAGE       add a message to the top of its ROUND.md
+#   loop/agents wait                    until every agent's session has ended
+#   loop/agents down [NAME]             stop one agent, or all
+#   loop/agents status                  each run's commits ahead of main
+#
+# An agent is a worktree of this clone on branch `agent/NAME` (state/runs/NAME), driven by
+# humanize's `ralph_loop` (a fresh session each round until the deadline) in a tmux window of
+# session `kern-rsi`. humanize is what makes the harness a choice: KERN_RSI_AGENT names it.
+# The prompt is loop/TASK.md followed by the run's ROUND.md: its brief, the deadline, messages.
+set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/env.sh"
+session=kern-rsi
+runs=$STATE/runs
+
+worktree() {
+  local name=$1 dir=$runs/$1
+  [[ -d $dir ]] && return
+  git -C "$MAIN" worktree add -q -B "agent/$name" "$dir" main
+  # Submodules from this clone's own checkouts: an agent has no network.
+  local m
+  for m in third_party/flashinfer third_party/kern; do
+    git -C "$dir" config "submodule.$m.url" "$MAIN/$m"
+    git -C "$dir" -c protocol.file.allow=always submodule update -q --init "$m"
+  done
+  printf 'ROUND.md\n.session.log\nout/\nbuild/\nwork/\n' >> "$(git -C "$dir" rev-parse --git-path info/exclude)"
+}
+
+up() {
+  local name=$1 brief=$2 minutes=$3 dir=$runs/$1
+  worktree "$name"
+  local deadline
+  deadline=$(date -u -d "+$minutes minutes" +%FT%TZ)
+  { printf '# Round brief: run `%s`\n\n**Deadline: %s** (`date -u` to compare); the session is killed then.\n' "$name" "$deadline"
+    printf '\n## Messages from the orchestrator\n\nRe-read this section at the start of every session; new ones are added here.\n\n'
+    cat "$brief"; } > "$dir/ROUND.md"
+  tmux has-session -t $session 2>/dev/null || tmux new-session -d -s $session -n main
+  tmux kill-window -t "$session:$name" 2>/dev/null || true
+  tmux new-window -d -t $session -n "$name" -c "$dir" \
+    "hmz exec -f ralph_loop -a agent=$AGENT -p budget.duration=$((minutes * 60)),budget.graceful=false \\
+      \"\$(cat $LOOP/TASK.md ROUND.md)\" 2>&1 | tee -a $dir/.session.log"
+  echo "agents: $name up until $deadline ($AGENT)"
+}
+
+tell() {
+  python3 - "$runs/$1/ROUND.md" "$(date -u +%H:%MZ): $2" <<'PY'
+import sys
+path, message = sys.argv[1:]
+anchor = "Re-read this section at the start of every session; new ones are added here.\n"
+text = open(path).read()
+open(path, "w").write(text.replace(anchor, anchor + f"\n- {message}\n", 1))
+PY
+}
+
+windows() { tmux list-windows -t $session -F '#W' 2>/dev/null | grep -vx main || true; }
+
+wait_all() {
+  while [[ -n $(windows) ]]; do sleep 30; done
+}
+
+down() {
+  local w
+  for w in $(windows); do
+    [[ -z ${1:-} || $w == "$1" ]] && tmux kill-window -t "$session:$w"
+  done
+}
+
+status() {
+  local d
+  for d in "$runs"/*/; do
+    [[ -d $d ]] || continue
+    echo "== $(basename "$d")  $(git -C "$d" rev-list --count main..HEAD) commits ahead of main"
+    git -C "$d" log --format='   %h %cr  %s' -5 main..HEAD
+  done
+  windows | sed 's/^/running: /'
+}
+
+cmd=${1:-status}
+shift || true
+case $cmd in
+  up) up "$@" ;;
+  tell) tell "$@" ;;
+  wait) wait_all ;;
+  down) down "$@" ;;
+  status) status ;;
+  *) sed -n '2,14s/^# \{0,1\}//p' "$0" >&2; exit 2 ;;
+esac

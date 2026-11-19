@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# loop/ab A B OUT [PAIRS]: two bundles under one GPU lease, A B B A ... (default 2 pairs), each
+# over workload.toml and loop/guard.toml, so both sides see the same clocks and temperature.
+# Separate loop/bench calls drift by more than most changes: this is the number to quote.
+# The last line is the verdict as JSON: cost a -> b, its change, the guard's worst, win.
+set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/env.sh"
+a=$(realpath "$1") b=$(realpath "$2") out=$(realpath -m "$3") n=${4:-2}
+rm -rf "$out" && mkdir -p "$out"
+run() {
+  local bundle=$1 tag=$2 workload=$3
+  "$KERN" bench --manifest "$bundle/model.json" --kernels "$bundle/kernels" --weights "$WEIGHTS" \
+    --tokenizer "$WEIGHTS/tokenizer.json" --gpu 0 --workload "$workload" --out "$out/$tag.json" \
+    > "$out/$tag.log" 2>&1 || { echo "ab: $tag failed:" >&2; tail -20 "$out/$tag.log" >&2; return 1; }
+}
+sides() {
+  for i in $(seq 1 "$n"); do
+    local order="a b"
+    ((i % 2)) || order="b a"
+    for s in $order; do
+      local bundle=$a
+      [[ $s == b ]] && bundle=$b
+      run "$bundle" "$s-$i" "$MAIN/workload.toml"
+      run "$bundle" "g$s-$i" "$LOOP/guard.toml"
+    done
+  done
+}
+export -f run sides
+export a b out n
+"$LOOP/withgpu" bash -euo pipefail -c sides
+python3 "$LOOP/score.py" ab "$out"

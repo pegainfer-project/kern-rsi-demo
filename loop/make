@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# loop/make [OUT]: this tree's kernels for the GPU's SM, its manifest over them, verified.
+# OUT (default out/<sm>) is a bundle: model.json, kernels/, kern.toml. ~15 s, no GPU lease.
+set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/env.sh"
+out=$(realpath -m "${1:-$TREE/out/$SM}")
+cd "$TREE"
+python3 scripts/build.py --sm "$SM" --nvcc "$NVCC" > "$STATE/make.$$.log" 2>&1 || { tail -20 "$STATE/make.$$.log"; exit 1; }
+# shellcheck disable=SC2086
+python3 scripts/gen.py --checkpoint "$WEIGHTS" --kernels "build/$SM" --out "$out" --gpu "$GPU" $GEN_BOUNDS
+"$KERN" verify "$out/model.json" > "$out/verify.log" 2>&1 || { cat "$out/verify.log"; exit 1; }
+rm -f "$STATE/make.$$.log"
+echo "make: $out"

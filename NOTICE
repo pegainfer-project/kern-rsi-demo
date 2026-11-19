@@ -1,0 +1,19 @@
+kern-rsi-demo
+
+source/elementwise.cu holds add_kernel and silu_mul_kernel from pegainfer,
+pegainfer-kernels/csrc/shared/elementwise.cu at revision
+8cdf53c4435e94e06767a38b501485407db97b22, Apache-2.0, with extern "C" linkage
+added and the bodies unchanged. https://github.com/pegainfer-project/pegainfer
+
+The generator, the CUDA sources and the sampling glue come from kern-qwen3
+(https://github.com/pegainfer-project/kern-qwen3, Apache-2.0); the sampling
+glue there is adapted from kern (https://github.com/pegainfer-project/kern).
+
+FlashInfer v0.7.2 (revision d84335d8c54e0c8f9f7e22faa15c7e34a58abf94) is an
+unmodified Apache-2.0 submodule; attention and sampling are instantiated from
+its headers. source/attention.cu and scripts/attention.py adapt the launch
+contract in pegainfer's pegainfer-kernels/csrc/shared/paged_launch.cuh: BF16
+causal paged prefill, partitioned paged decode, and FlashInfer's
+variable-length state merge. https://github.com/flashinfer-ai/flashinfer
+
+kern is an unmodified Apache-2.0 submodule at the revision kernels.toml pins.

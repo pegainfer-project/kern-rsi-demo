@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# loop/round N: one turn of the loop.
+#
+# dispatch  a fresh coordinator session (humanize's `chat`, one turn) reads main's cost by op
+#           and the history, and writes one brief per run into state/rounds/rN/
+# optimize  one agent per brief (loop/agents up), until the round's deadline
+# land      every run, in brief order, through loop/land's gates onto main
+#
+# Writes state/rounds/rN/summary.md. KERN_RSI_LANES runs (default 2) for KERN_RSI_ROUND_MINUTES
+# (default 90).
+set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/env.sh"
+n=$1 lanes=${KERN_RSI_LANES:-2} minutes=${KERN_RSI_ROUND_MINUTES:-90}
+dir=$STATE/rounds/r$n
+mkdir -p "$dir/briefs"
+
+context() {
+  printf '\n## This round\n\nRound %s: write %s briefs; each run gets %s minutes.\n' "$n" "$lanes" "$minutes"
+  printf 'GPU: %s (%s). The repository: %s\n' \
+    "$(nvidia-smi -i "$GPU" --query-gpu=name,memory.total --format=csv,noheader)" "$SM" "$MAIN"
+  printf '\n## Main: cost by op\n\n```\n%s\n```\n' "$(python3 "$LOOP/score.py" ops "$STATE/main/bench.json")"
+  printf '\n## Main: scenarios\n\n```\n%s\n```\n' "$(python3 "$LOOP/score.py" show "$STATE/main/bench.json")"
+  printf '\n## History\n\n%s\n' "$(cat "$STATE/HISTORY.md")"
+  local last=$STATE/rounds/r$((n - 1))/summary.md
+  [[ -f $last ]] && printf '\n## Last round\n\n%s\n' "$(cat "$last")"
+  return 0
+}
+
+if [[ -z $(ls "$dir/briefs"/*.md 2>/dev/null) ]]; then
+  (cd "$dir/briefs" && hmz exec -f chat -a "assistant=$AGENT" "$(cat "$LOOP/DISPATCH.md"; context)" < /dev/null) \
+    > "$dir/dispatch.log" 2>&1 || { tail -20 "$dir/dispatch.log"; exit 1; }
+fi
+briefs=("$dir"/briefs/*.md)
+[[ -f ${briefs[0]} ]] || { echo "round $n: dispatch wrote no briefs (see $dir/dispatch.log)"; exit 1; }
+for b in "${briefs[@]:0:$lanes}"; do
+  "$LOOP/agents" up "r$n-$(basename "$b" .md)" "$b" "$minutes"
+done
+"$LOOP/agents" wait
+
+{ printf '| run | target | commits | outcome |\n|---|---|---|---|\n'
+  for b in "${briefs[@]:0:$lanes}"; do
+    name=r$n-$(basename "$b" .md)
+    commits=$(git -C "$MAIN" rev-list --count "main..agent/$name" 2>/dev/null || echo 0)
+    result=$("$LOOP/land" "$name" 2>&1 | tail -n 1) || true
+    printf '| %s | %s | %s | %s |\n' "$name" "$(head -n 1 "$b" | sed 's/^Target: //')" "$commits" "$result"
+  done; } > "$dir/summary.md"
+cat "$dir/summary.md"
